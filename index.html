@@ -16,13 +16,13 @@
         }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-200 flex items-center justify-center min-h-screen">
+<body class="bg-gray-900 text-gray-200 flex items-center justify-center min-h-screen py-12">
 
     <div class="w-full max-w-2xl mx-auto p-6 md:p-8 bg-gray-800 rounded-2xl shadow-2xl">
         
         <header class="mb-6 text-center">
-            <h1 class="text-3xl md:text-4xl font-bold text-white">SHA-256 Salter & Hasher</h1>
-            <p class="text-gray-400 mt-2">Securely hash your strings with a random salt.</p>
+            <h1 class="text-3xl md:text-4xl font-bold text-white">SHA-256 Hasher</h1>
+            <p class="text-gray-400 mt-2">Securely hash your strings with and without a random salt.</p>
         </header>
 
         <main>
@@ -52,7 +52,7 @@
                     <p id="salt" class="p-4 bg-gray-900 rounded-lg font-mono text-sm break-words"></p>
                 </div>
                 
-                <!-- Final Hash -->
+                <!-- Salted Hash -->
                 <div>
                     <h3 class="text-lg font-semibold text-gray-400">Salted & Hashed Output (SHA-256)</h3>
                     <div class="relative">
@@ -62,6 +62,18 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- Unsalted Hash -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-400">Hashed Output (SHA-256 Only)</h3>
+                    <div class="relative">
+                        <p id="hashedOutputUnsalted" class="p-4 pr-16 bg-gray-900 rounded-lg font-mono text-sm break-words"></p>
+                        <button id="copyButtonUnsalted" class="absolute top-1/2 right-3 transform -translate-y-1/2 bg-gray-700 hover:bg-gray-600 text-gray-300 font-semibold py-1 px-3 rounded-md text-xs transition-all">
+                            Copy
+                        </button>
+                    </div>
+                </div>
+
                  <!-- Message Box -->
                 <div id="messageBox" class="hidden fixed bottom-5 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg">
                     Copied to clipboard!
@@ -79,14 +91,14 @@
         const originalStringEl = document.getElementById('originalString');
         const saltEl = document.getElementById('salt');
         const hashedOutputEl = document.getElementById('hashedOutput');
+        const hashedOutputUnsaltedEl = document.getElementById('hashedOutputUnsalted');
         const copyButton = document.getElementById('copyButton');
+        const copyButtonUnsalted = document.getElementById('copyButtonUnsalted');
         const messageBox = document.getElementById('messageBox');
 
         // --- Helper function to convert ArrayBuffer to Hex String ---
         function bufferToHexString(buffer) {
-            // Create a new Uint8Array from the buffer
             const byteArray = new Uint8Array(buffer);
-            // Map each byte to its 2-digit hex representation and join them
             return Array.from(byteArray)
                 .map(b => b.toString(16).padStart(2, '0'))
                 .join('');
@@ -99,7 +111,6 @@
          */
         function generateSalt(byteLength = 16) {
             const saltArray = new Uint8Array(byteLength);
-            // Use the Web Crypto API for secure random number generation
             crypto.getRandomValues(saltArray);
             return saltArray;
         }
@@ -110,36 +121,45 @@
         async function performHash() {
             const input = inputStringEl.value;
             if (!input) {
-                alert("Please enter a string to hash."); // A simple modal or custom alert would be better in a real app
+                // Using a custom message box instead of alert
+                messageBox.textContent = "Please enter a string to hash.";
+                messageBox.classList.remove('bg-green-500');
+                messageBox.classList.add('bg-red-500');
+                messageBox.classList.remove('hidden');
+                setTimeout(() => {
+                    messageBox.classList.add('hidden');
+                    messageBox.classList.remove('bg-red-500');
+                    messageBox.classList.add('bg-green-500');
+                    messageBox.textContent = "Copied to clipboard!";
+                }, 3000);
                 return;
             }
 
             try {
-                // 1. Generate a random salt
-                const salt = generateSalt();
-
-                // 2. Prepare the data for hashing
-                // We encode the input string to UTF-8 bytes
+                // --- Shared Setup ---
                 const textEncoder = new TextEncoder();
                 const inputBytes = textEncoder.encode(input);
-                
-                // Concatenate salt and input bytes
+
+                // --- 1. Salting and Hashing ---
+                const salt = generateSalt();
                 const saltedInput = new Uint8Array(salt.length + inputBytes.length);
                 saltedInput.set(salt);
                 saltedInput.set(inputBytes, salt.length);
+                const saltedHashBuffer = await crypto.subtle.digest('SHA-256', saltedInput);
+                
+                // --- 2. Hashing Only ---
+                const unsaltedHashBuffer = await crypto.subtle.digest('SHA-256', inputBytes);
 
-                // 3. Hash the combined data using SHA-256
-                // crypto.subtle.digest returns a Promise that resolves with an ArrayBuffer
-                const hashBuffer = await crypto.subtle.digest('SHA-256', saltedInput);
-
-                // 4. Convert results to hex strings for display
+                // --- 3. Convert results to hex strings for display ---
                 const saltHex = bufferToHexString(salt);
-                const hashHex = bufferToHexString(hashBuffer);
+                const saltedHashHex = bufferToHexString(saltedHashBuffer);
+                const unsaltedHashHex = bufferToHexString(unsaltedHashBuffer);
 
-                // 5. Display the results on the page
+                // --- 4. Display the results on the page ---
                 originalStringEl.textContent = input;
                 saltEl.textContent = saltHex;
-                hashedOutputEl.textContent = hashHex;
+                hashedOutputEl.textContent = saltedHashHex;
+                hashedOutputUnsaltedEl.textContent = unsaltedHashHex;
                 resultsEl.classList.remove('hidden');
 
             } catch (error) {
@@ -147,22 +167,14 @@
                 alert("An error occurred during the hashing process. Please check the console.");
             }
         }
-
-        // --- Event Listeners ---
-        hashButton.addEventListener('click', performHash);
-
-        // Allow pressing Enter to trigger the hash
-        inputStringEl.addEventListener('keypress', (event) => {
-            if (event.key === 'Enter') {
-                performHash();
-            }
-        });
-
-        // Clipboard functionality
-        copyButton.addEventListener('click', () => {
-            const textToCopy = hashedOutputEl.textContent;
+        
+        /**
+         * Copies text from a given element to the clipboard.
+         * @param {HTMLElement} element - The element containing the text to copy.
+         */
+        function copyToClipboard(element) {
+            const textToCopy = element.textContent;
             
-            // A fallback for environments where navigator.clipboard might be restricted (like some iframes)
             const textArea = document.createElement('textarea');
             textArea.value = textToCopy;
             document.body.appendChild(textArea);
@@ -170,6 +182,7 @@
             try {
                 document.execCommand('copy');
                 // Visual feedback
+                messageBox.textContent = "Copied to clipboard!";
                 messageBox.classList.remove('hidden');
                 setTimeout(() => {
                     messageBox.classList.add('hidden');
@@ -179,10 +192,22 @@
                 alert('Failed to copy hash to clipboard.');
             }
             document.body.removeChild(textArea);
+        }
+
+        // --- Event Listeners ---
+        hashButton.addEventListener('click', performHash);
+
+        inputStringEl.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                performHash();
+            }
         });
+
+        // Clipboard functionality for both buttons
+        copyButton.addEventListener('click', () => copyToClipboard(hashedOutputEl));
+        copyButtonUnsalted.addEventListener('click', () => copyToClipboard(hashedOutputUnsaltedEl));
 
     </script>
 
 </body>
 </html>
-
