@@ -55,28 +55,18 @@
                 <!-- Salted Hash -->
                 <div>
                     <h3 class="text-lg font-semibold text-gray-400">Salted & Hashed Output (SHA-256)</h3>
-                    <div class="relative">
-                        <p id="hashedOutput" class="p-4 pr-16 bg-gray-900 rounded-lg font-mono text-sm break-words"></p>
-                        <button id="copyButton" class="absolute top-1/2 right-3 transform -translate-y-1/2 bg-gray-700 hover:bg-gray-600 text-gray-300 font-semibold py-1 px-3 rounded-md text-xs transition-all">
-                            Copy
-                        </button>
-                    </div>
+                    <p id="hashedOutput" class="p-4 bg-gray-900 rounded-lg font-mono text-sm break-words"></p>
                 </div>
 
                 <!-- Unsalted Hash -->
                 <div>
                     <h3 class="text-lg font-semibold text-gray-400">Hashed Output (SHA-256 Only)</h3>
-                    <div class="relative">
-                        <p id="hashedOutputUnsalted" class="p-4 pr-16 bg-gray-900 rounded-lg font-mono text-sm break-words"></p>
-                        <button id="copyButtonUnsalted" class="absolute top-1/2 right-3 transform -translate-y-1/2 bg-gray-700 hover:bg-gray-600 text-gray-300 font-semibold py-1 px-3 rounded-md text-xs transition-all">
-                            Copy
-                        </button>
-                    </div>
+                    <p id="hashedOutputUnsalted" class="p-4 bg-gray-900 rounded-lg font-mono text-sm break-words"></p>
                 </div>
 
                  <!-- Message Box -->
-                <div id="messageBox" class="hidden fixed bottom-5 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg">
-                    Copied to clipboard!
+                <div id="messageBox" class="hidden fixed bottom-5 right-5 bg-red-500 text-white py-2 px-4 rounded-lg shadow-lg">
+                    <!-- Error messages will appear here -->
                 </div>
             </div>
         </main>
@@ -92,8 +82,6 @@
         const saltEl = document.getElementById('salt');
         const hashedOutputEl = document.getElementById('hashedOutput');
         const hashedOutputUnsaltedEl = document.getElementById('hashedOutputUnsalted');
-        const copyButton = document.getElementById('copyButton');
-        const copyButtonUnsalted = document.getElementById('copyButtonUnsalted');
         const messageBox = document.getElementById('messageBox');
 
         // --- Helper function to convert ArrayBuffer to Hex String ---
@@ -123,14 +111,9 @@
             if (!input) {
                 // Using a custom message box instead of alert
                 messageBox.textContent = "Please enter a string to hash.";
-                messageBox.classList.remove('bg-green-500');
-                messageBox.classList.add('bg-red-500');
                 messageBox.classList.remove('hidden');
                 setTimeout(() => {
                     messageBox.classList.add('hidden');
-                    messageBox.classList.remove('bg-red-500');
-                    messageBox.classList.add('bg-green-500');
-                    messageBox.textContent = "Copied to clipboard!";
                 }, 3000);
                 return;
             }
@@ -168,32 +151,6 @@
             }
         }
         
-        /**
-         * Copies text from a given element to the clipboard.
-         * @param {HTMLElement} element - The element containing the text to copy.
-         */
-        function copyToClipboard(element) {
-            const textToCopy = element.textContent;
-            
-            const textArea = document.createElement('textarea');
-            textArea.value = textToCopy;
-            document.body.appendChild(textArea);
-            textArea.select();
-            try {
-                document.execCommand('copy');
-                // Visual feedback
-                messageBox.textContent = "Copied to clipboard!";
-                messageBox.classList.remove('hidden');
-                setTimeout(() => {
-                    messageBox.classList.add('hidden');
-                }, 2000);
-            } catch (err) {
-                console.error('Fallback: Oops, unable to copy', err);
-                alert('Failed to copy hash to clipboard.');
-            }
-            document.body.removeChild(textArea);
-        }
-
         // --- Event Listeners ---
         hashButton.addEventListener('click', performHash);
 
@@ -202,10 +159,6 @@
                 performHash();
             }
         });
-
-        // Clipboard functionality for both buttons
-        copyButton.addEventListener('click', () => copyToClipboard(hashedOutputEl));
-        copyButtonUnsalted.addEventListener('click', () => copyToClipboard(hashedOutputUnsaltedEl));
 
     </script>
 
