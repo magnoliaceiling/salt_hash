@@ -46,16 +46,28 @@
                     <p id="originalString" class="p-4 bg-gray-900 rounded-lg font-mono text-sm break-words"></p>
                 </div>
 
-                <!-- Generated Salt -->
+                <!-- Randomly Generated Salt -->
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-400">Generated Salt (Hex)</h3>
+                    <h3 class="text-lg font-semibold text-gray-400">Randomly Generated Salt (Hex)</h3>
                     <p id="salt" class="p-4 bg-gray-900 rounded-lg font-mono text-sm break-words"></p>
                 </div>
                 
-                <!-- Salted Hash -->
+                <!-- Salted Hash (Random Salt) -->
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-400">Salted & Hashed Output (SHA-256)</h3>
+                    <h3 class="text-lg font-semibold text-gray-400">Random Salt & Hashed Output (SHA-256)</h3>
                     <p id="hashedOutput" class="p-4 bg-gray-900 rounded-lg font-mono text-sm break-words"></p>
+                </div>
+
+                <!-- Fixed Salt -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-400">Fixed Salt (Hex)</h3>
+                    <p id="fixedSalt" class="p-4 bg-gray-900 rounded-lg font-mono text-sm break-words"></p>
+                </div>
+
+                <!-- Salted Hash (Fixed Salt) -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-400">Fixed Salt & Hashed Output (SHA-256)</h3>
+                    <p id="hashedOutputFixedSalt" class="p-4 bg-gray-900 rounded-lg font-mono text-sm break-words"></p>
                 </div>
 
                 <!-- Unsalted Hash -->
@@ -81,8 +93,14 @@
         const originalStringEl = document.getElementById('originalString');
         const saltEl = document.getElementById('salt');
         const hashedOutputEl = document.getElementById('hashedOutput');
+        const fixedSaltEl = document.getElementById('fixedSalt');
+        const hashedOutputFixedSaltEl = document.getElementById('hashedOutputFixedSalt');
         const hashedOutputUnsaltedEl = document.getElementById('hashedOutputUnsalted');
         const messageBox = document.getElementById('messageBox');
+
+        // --- Fixed Salt Value ---
+        // This is a constant salt value used for the third example.
+        const FIXED_SALT_STRING = 'a-very-consistent-and-fixed-salt-value';
 
         // --- Helper function to convert ArrayBuffer to Hex String ---
         function bufferToHexString(buffer) {
@@ -104,7 +122,7 @@
         }
 
         /**
-         * The main function to perform salting and hashing.
+         * The main function to perform all three hashing operations.
          */
         async function performHash() {
             const input = inputStringEl.value;
@@ -123,30 +141,42 @@
                 const textEncoder = new TextEncoder();
                 const inputBytes = textEncoder.encode(input);
 
-                // --- 1. Salting and Hashing ---
-                const salt = generateSalt();
-                const saltedInput = new Uint8Array(salt.length + inputBytes.length);
-                saltedInput.set(salt);
-                saltedInput.set(inputBytes, salt.length);
-                const saltedHashBuffer = await crypto.subtle.digest('SHA-256', saltedInput);
+                // --- 1. Random Salting and Hashing ---
+                const randomSalt = generateSalt();
+                const randomSaltedInput = new Uint8Array(randomSalt.length + inputBytes.length);
+                randomSaltedInput.set(randomSalt);
+                randomSaltedInput.set(inputBytes, randomSalt.length);
+                const randomSaltedHashBuffer = await crypto.subtle.digest('SHA-256', randomSaltedInput);
                 
-                // --- 2. Hashing Only ---
+                // --- 2. Fixed Salt and Hashing ---
+                const fixedSaltBytes = textEncoder.encode(FIXED_SALT_STRING);
+                const fixedSaltedInput = new Uint8Array(fixedSaltBytes.length + inputBytes.length);
+                fixedSaltedInput.set(fixedSaltBytes);
+                fixedSaltedInput.set(inputBytes, fixedSaltBytes.length);
+                const fixedSaltedHashBuffer = await crypto.subtle.digest('SHA-256', fixedSaltedInput);
+
+                // --- 3. Hashing Only (Unsalted) ---
                 const unsaltedHashBuffer = await crypto.subtle.digest('SHA-256', inputBytes);
 
-                // --- 3. Convert results to hex strings for display ---
-                const saltHex = bufferToHexString(salt);
-                const saltedHashHex = bufferToHexString(saltedHashBuffer);
+                // --- 4. Convert all results to hex strings for display ---
+                const randomSaltHex = bufferToHexString(randomSalt);
+                const randomSaltedHashHex = bufferToHexString(randomSaltedHashBuffer);
+                const fixedSaltHex = bufferToHexString(fixedSaltBytes);
+                const fixedSaltedHashHex = bufferToHexString(fixedSaltedHashBuffer);
                 const unsaltedHashHex = bufferToHexString(unsaltedHashBuffer);
 
-                // --- 4. Display the results on the page ---
+                // --- 5. Display all the results on the page ---
                 originalStringEl.textContent = input;
-                saltEl.textContent = saltHex;
-                hashedOutputEl.textContent = saltedHashHex;
+                saltEl.textContent = randomSaltHex;
+                hashedOutputEl.textContent = randomSaltedHashHex;
+                fixedSaltEl.textContent = fixedSaltHex;
+                hashedOutputFixedSaltEl.textContent = fixedSaltedHashHex;
                 hashedOutputUnsaltedEl.textContent = unsaltedHashHex;
                 resultsEl.classList.remove('hidden');
 
             } catch (error) {
                 console.error("Hashing failed:", error);
+                // A real app should have a more graceful error UI
                 alert("An error occurred during the hashing process. Please check the console.");
             }
         }
